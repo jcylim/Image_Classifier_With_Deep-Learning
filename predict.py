@@ -31,13 +31,32 @@ class LoadCheckpoint:
         return model
     
     def process_image(self):
+        size = [256]
+        new_dim = 224
+        mean = np.array([0.485, 0.456, 0.406])
+        sd = np.array([0.229, 0.224, 0.225])
+
         original_img = Image.open(self.imgPath)
-        transform = transforms.Compose([transforms.Resize(256),
-                                        transforms.CenterCrop(224),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize([0.485, 0.456, 0.406],
-                                                                [0.229, 0.224, 0.225])])
-        img = transform(original_img)
+        w, h = original_img.size
+
+        shorter_side = min(w, h)
+        size.insert(0, shorter_side)   
+
+        original_img.thumbnail(size, Image.ANTIALIAS)
+
+        left = (256 - new_dim)/2
+        top = (256 - new_dim)/2
+        right = (256 + new_dim)/2
+        bottom = (256 + new_dim)/2
+
+        img = original_img.crop((left, top, right, bottom))
+        img = np.array(img)
+        img = img/255
+
+        img = (img - mean)/sd
+
+        img = np.transpose(img, (2, 0, 1))
+
         return img
     
 class Prediction:
@@ -48,7 +67,7 @@ class Prediction:
         self.cat_to_name = 'cat_to_name.json' if not cat_to_name else cat_to_name
         with open(self.cat_to_name, 'r') as f:
             self.cat_to_name = json.load(f)
-        self.gpu = 'cuda' if gpu == True else 'cpu'
+        self.gpu = 'cuda' if gpu == True and torch.cuda.is_available() else 'cpu'
         self.device = torch.device(self.gpu)
         
     def predict(self):
@@ -56,6 +75,7 @@ class Prediction:
         self.model.to(self.device)
         self.model.eval()
 
+        self.img = torch.from_numpy(self.img)
         self.img = self.img.unsqueeze_(0)
         self.img = self.img.float()
 

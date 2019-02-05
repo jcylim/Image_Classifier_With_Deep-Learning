@@ -61,19 +61,20 @@ class NeuralNetwork:
         self.lr = 0.001 if not lr else lr
         self.hidden_units = 512 if not hidden_units else hidden_units
         self.epochs = 5 if not epochs else epochs
-        self.gpu = 'cuda' if gpu == True else 'cpu'
+        self.gpu = 'cuda' if gpu == True and torch.cuda.is_available() else 'cpu'
         self.save_dir = '' if not save_dir else save_dir
         self.device = torch.device(self.gpu)
         self.model, self.optimizer, self.criterion = self._setup_nn()
         
     def _setup_nn(self):
         model = getattr(models, self.arch)(pretrained=True)
+        fLayer = model.classifier.in_features
         
         for param in model.parameters():
             param.requires_grad = False
 
         classifier = nn.Sequential(OrderedDict([
-                                    ('hidden1', nn.Linear(1024, self.hidden_units)),
+                                    ('hidden1', nn.Linear(fLayer, self.hidden_units)),
                                     ('relu1', nn.ReLU()),
                                     ('dropout1', nn.Dropout(0.3)),
                                     ('hidden2', nn.Linear(self.hidden_units, 256)),
